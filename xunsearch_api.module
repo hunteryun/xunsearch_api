@@ -61,7 +61,7 @@ function xunsearch_update_index() {
         $configs = array_merge($project_configs, $fields);
       }
       $xs = new Search($configs);
-      $xs->addIndex($data);
+      $xs->updateIndex($data);
     }
     return TRUE;
   }else {
