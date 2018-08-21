@@ -1,0 +1,5 @@
+name: Xunsearch API
+type: module
+description: 强大的支持中文分词的全文搜索工具.
+core: 1.x
+package: Hunter

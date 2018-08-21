@@ -1,0 +1,135 @@
+<?php
+
+use Hunter\Xunsearch\Search;
+
+/**
+ * Implements hook_config_form().
+ */
+function xunsearch_api_config_form() {
+  $server = variable_get('xunsearch_server');
+
+  $xunsearch_form['xunsearch_server'] = array(
+      '#type' => 'container',
+  );
+  $xunsearch_form['xunsearch_server']['index'] = array(
+    '#type' => 'textfield',
+    '#title' => '索引服务器地址',
+    '#required' => TRUE,
+    '#default_value' => $server['index'],
+  );
+  $xunsearch_form['xunsearch_server']['search'] = array(
+    '#type' => 'textfield',
+    '#title' => '搜索服务器地址',
+    '#required' => TRUE,
+    '#default_value' => $server['search'],
+  );
+  $xunsearch_form['form_id'] = 'xunsearch_config_form';
+  $xunsearch_form['name'] = 'Xunsearch服务器设置';
+
+  return $xunsearch_form;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function xunsearch_api_cron() {
+  return array(
+    'name' => t('定时更新数据索引'),
+    'command' => '0 2 * *',//默认为每周日凌晨2点执行，你可以改成s@1测试
+    'callback' => 'xunsearch_update_index'
+  );
+}
+
+/**
+ * callback for cron update index.
+ */
+function xunsearch_update_index() {
+  global $app;
+
+  $server_config = variable_get('xunsearch_server');
+  $configs = array();
+  $project_configs = array();
+  if(!empty($server_config)){
+    $project_configs['project.default_charset'] = 'utf-8';
+    $project_configs['server.index'] = $server_config['index'];
+    $project_configs['server.search'] = $server_config['search'];
+    foreach ($app->getModuleHandle()->getImplementations('xunsearch_index') as $module_name) {
+      $project_configs['project.name'] = $module_name;
+      $data = $app->getModuleHandle()->invoke($module_name, 'xunsearch_index');
+      $fields = config($module_name.'.xunsearch')->get('fields');
+      if($fields){
+        $configs = array_merge($project_configs, $fields);
+      }
+      $xs = new Search($configs);
+      $xs->addIndex($data);
+    }
+    return TRUE;
+  }else {
+    hunter_set_message('你还没有配置服务器信息.', 'error');
+    return FALSE;
+  }
+}
+
+/**
+ * clean index.
+ */
+function xunsearch_clean_index() {
+  global $app;
+
+  $server_config = variable_get('xunsearch_server');
+  $configs = array();
+  $project_configs = array();
+  if(!empty($server_config)){
+    $project_configs['project.default_charset'] = 'utf-8';
+    $project_configs['server.index'] = $server_config['index'];
+    $project_configs['server.search'] = $server_config['search'];
+    foreach ($app->getModuleHandle()->getImplementations('xunsearch_index') as $module_name) {
+      $project_configs['project.name'] = $module_name;
+      $data = $app->getModuleHandle()->invoke($module_name, 'xunsearch_index');
+      $fields = config($module_name.'.xunsearch')->get('fields');
+      if($fields){
+        $configs = array_merge($project_configs, $fields);
+      }
+      $xs = new Search($configs);
+      $xs->cleanIndex();
+    }
+    return TRUE;
+  }else {
+    hunter_set_message('你还没有配置服务器信息.', 'error');
+    return FALSE;
+  }
+}
+
+/**
+ * xunsearch search.
+ */
+function xunsearch_search($keywords = '') {
+  global $app;
+  $result = array();
+
+  $server_config = variable_get('xunsearch_server');
+  $configs = array();
+  $project_configs = array();
+  if(!empty($server_config)){
+    $project_configs['project.default_charset'] = 'utf-8';
+    $project_configs['server.index'] = $server_config['index'];
+    $project_configs['server.search'] = $server_config['search'];
+    foreach ($app->getModuleHandle()->getImplementations('xunsearch_index') as $module_name) {
+      $project_configs['project.name'] = $module_name;
+      $data = $app->getModuleHandle()->invoke($module_name, 'xunsearch_index');
+      $fields = config($module_name.'.xunsearch')->get('fields');
+      if($fields){
+        $configs = array_merge($project_configs, $fields);
+      }
+      $xs = new Search($configs);
+      $res = $xs->searchAll($keywords);
+      foreach ($res['doc'] as $key => $value) {
+        $result[] = $value->getFields();
+      }
+    }
+    return $result;
+  }else {
+    hunter_set_message('你还没有配置服务器信息.', 'error');
+    return FALSE;
+  }
+}
